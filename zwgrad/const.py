@@ -1,5 +1,6 @@
 class OP:
     ADD = "add"
+    MUL = "mul"
 
     def __getattr__(cls, name):
         if name.isupper():

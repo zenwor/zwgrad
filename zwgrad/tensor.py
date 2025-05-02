@@ -48,6 +48,25 @@ class Tensor:
             return out_tensor
         else:
             return Tensor(self.item() + other.item())
+        
+    def __mul__(self, other):
+        if zwgrad.TRACING:
+            out_name = gen_name(f"{OP.MUL}_")
+            out_tensor = Tensor(None, name=out_name)
+
+            op_data = {
+                "op": OP.MUL,
+                "operands": [self, other],
+                "out": out_tensor,
+            }
+            op = GRAPH.make_op(op_data)
+
+            GRAPH.add_op(op)
+            out_tensor.irnode = op
+
+            return out_tensor
+        else:
+            return Tensor(self.item() * other.item())
 
     def copy_tensor(self, tensor):
         self.name = tensor.name
