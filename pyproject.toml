@@ -4,38 +4,44 @@ target-version = ['py38']
 skip-string-normalization = true
 exclude = '''
 /(
-    .git
-    .tox
-    .nox
-    .venv
-    .hypothesis
-    .mypy_cache
-    .pytest_cache
-    dist
-    build
+    \.git
+    | \.tox
+    | \.nox
+    | \.venv
+    | \.hypothesis
+    | \.mypy_cache
+    | \.pytest_cache
+    | dist
+    | build
 )/
 '''
 
 [tool.flake8]
 max-line-length = 88
 exclude =
-    .git
-    .tox
-    .nox
-    .venv
-    .hypothesis
-    .mypy_cache
-    .pytest_cache
-    dist
-    build
-    migrations
-    setup.py
+    .git,
+    .tox,
+    .nox,
+    .venv,
+    .hypothesis,
+    .mypy_cache,
+    .pytest_cache,
+    dist,
+    build,
+    migrations,
+    setup.py,
     config.py
 
 [tool.isort]
 profile = "black"
 line_length = 88
-known_third_party = ["numpy", "torch", "jax", "onnx", "pycuda"]
+known_third_party = [
+    "numpy",
+    "torch",
+    "jax",
+    "onnx",
+    "pycuda"
+]
 known_first_party = ["zwgrad"]
 skip = ["migrations", "tests"]
 src_paths = ["src"]
@@ -50,4 +56,8 @@ warn_unused_ignores = true
 
 [tool.pylint]
 max-line-length = 88
-disable = "C0114,C0115,C0116"  # Disable docstring required warnings
+disable = [
+    "C0114",  # missing-module-docstring
+    "C0115",  # missing-class-docstring
+    "C0116"   # missing-function-docstring
+]

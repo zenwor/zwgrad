@@ -1,3 +1,8 @@
+# Project-specific
+update_env.sh
+main.py
+run.sh
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
