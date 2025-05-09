@@ -4,43 +4,47 @@ from zwir.op import OP, OPNode
 
 class Tensor:
     def __init__(self, data, device: str = "cpu"):
-        if not isinstance(data, OPNode):
-            if not isinstance(data, np.ndarray):  # Wrap into np.ndarray
+        if isinstance(data, OPNode):
+            self.op = data
+        else:
+            if not isinstance(data, np.ndarray):
                 data = np.array(data)
-            data = OPNode(OP.TEN, src=self, arg=data)  # Make OP holding value
+            self.op = OPNode(OP.TEN, [data])
 
-        self.op = data
         self.device = device
-        self.shape = data.shape if "shape" in data.__dir__() else None
-        self.dtype = data.dtype if "dtype" in data.__dir__() else None
+        self._shape = data.shape if hasattr(data, "shape") else None
+        self._dtype = data.dtype if hasattr(data, "dtype") else None
+
+    @property
+    def shape(self):
+        return self.op.exec().shape if self._shape is None else self._shape
+
+    @property
+    def dtype(self):
+        return self.op.exec().dtype if self._dtype is None else self._dtype
 
     def __str__(self):
         return f"Tensor(op={self.op}, shape={self.shape}, dtype={self.dtype}, device={self.device})"  # noqa: E501
 
-    def _constr(self, x, op: OP):
-        assert self.device == x.device, "Tensors must be on same device."
-
-        res = Tensor(None, self.device)
-        opnode = OPNode(op, (self.op, x.op, res), None)
-        res.op = opnode
-        return res
-
-    def item(self):
-        self._exec()  # TODO: Realize
-        return self.op.arg
-
-    def _exec(self):
+    def numpy(self):
         return self.op.exec()
 
-    # Op overloads
-    def __len__(self):
-        return 1
-
-    def __iter__(self):
-        yield self
-
+    # Op overloading
     def __add__(self, x):
-        return self._constr(x, OP.ADD)
+        if not isinstance(x, Tensor):
+            x = Tensor(x, device=self.device)
+        assert self.device == x.device, "Tensors must be on same device."
+        return Tensor(OPNode(OP.ADD, [self.op, x.op]))
 
+    # Op overloading
     def __mul__(self, x):
-        return self._constr(x, OP.MUL)
+        if not isinstance(x, Tensor):
+            x = Tensor(x, device=self.device)
+        assert self.device == x.device, "Tensors must be on same device."
+        return Tensor(OPNode(OP.MUL, [self.op, x.op]))
+
+    def __matmul__(self, x):
+        if not isinstance(x, Tensor):
+            x = Tensor(x, device=self.device)
+        assert self.device == x.device, "Tensors must be on same device."
+        return Tensor(OPNode(OP.MATMUL, [self.op, x.op]))
