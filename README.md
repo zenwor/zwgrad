@@ -33,11 +33,11 @@ x = zwg.ten([1.0, 2.0, 3.0, 4.0], req_grad=True) # Create a tensor via `zwg.ten`
 model = Model()  # Instantiate the model
 y = model(x)  # Forward pass
 
-logger.info(y)  # Get the computation graph
-logger.info(y.numpy())  # Get the exact forward pass value
+logger.info(f"Graph: {y}")  # Get the computation graph
+logger.info(f"y = {y.numpy()}")  # Get the exact forward pass value
 
 z = y.sum()
 z.bwd()  # Backpropagate
-logger.info(x.grad)
-logger.info(y.grad)
+logger.info(f"x.grad = {x.grad}")
+logger.info(f"y.grad = {y.grad}")
 ```
