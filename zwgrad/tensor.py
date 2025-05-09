@@ -16,7 +16,7 @@ class Tensor:
         self._dtype = data.dtype if hasattr(data, "dtype") else None
 
         self.req_grad = req_grad
-        self.grad = None  # Will hold gradient after backprop
+        self.grad = np.zeros_like(self.numpy()) if req_grad else None
         self._ctx = None  # For tracking parent tensors in the graph
 
     @property
@@ -36,46 +36,41 @@ class Tensor:
     def _check_devices(self, x):
         return self.device == x.device
 
-    # Op overloading
-    def __add__(self, x):
+    def _binary_op_check(self, x):
         if not isinstance(x, Tensor):
             x = Tensor(x, device=self.device)
         assert self._check_devices(x), "Tensors must be on same device."
+
+    # Op overloading
+    def __add__(self, x):
+        x = self.binary_op_check(x)
         res = Tensor(OPNode(OP.ADD, [self.op, x.op]))
-        if self.req_grad or x.req_grad:
-            res.req_grad = True
-            res._ctx = (self, x)
+        res._set_grad(self, x)
         return res
 
     def __mul__(self, x):
-        if not isinstance(x, Tensor):
-            x = Tensor(x, device=self.device)
-        assert self._check_devices(x), "Tensors must be on same device."
+        x = self.binary_op_check(x)
         res = Tensor(OPNode(OP.MUL, [self.op, x.op]))
-        if self.req_grad or x.req_grad:
-            res.req_grad = True
-            res._ctx = (self, x)
+        res._set_grad(self, x)
         return res
 
     def __matmul__(self, x):
-        if not isinstance(x, Tensor):
-            x = Tensor(x, device=self.device)
-        assert self._check_devices(x), "Tensors must be on same device."
+        x = self.binary_op_check(x)
         res = Tensor(OPNode(OP.MATMUL, [self.op, x.op]))
-        if self.req_grad or x.req_grad:
-            res.req_grad = True
-            res._ctx = (self, x)
+        res._set_grad(self, x)
         return res
 
     def sum(self, axis=None, keepdims=False):
-        result = Tensor(
+        res = Tensor(
             OPNode(OP.SUM, [self.op], {"axis": axis, "keepdims": keepdims})
         )  # noqa: E501
-        if self.req_grad:
-            result.req_grad = True
-            result._ctx = (self,)
-        return result
+        res._set_grad(self)
+        return res
 
+    def backward(self, grad_out=None):
+        return self.bwd(grad_out)
+
+    # Backward pass
     def bwd(self, grad_out=None):
         if not self.req_grad:
             return
@@ -113,3 +108,8 @@ class Tensor:
             elif self.op.op == OP.MATMUL:
                 a.bwd(np.matmul(grad_out, b.numpy().T))
                 b.bwd(np.matmul(a.numpy().T, grad_out))
+
+    def _set_grad(self, a, b=None):
+        self.req_grad = a.req_grad or (b is not None and b.req_grad)
+        if self.req_grad:
+            self._ctx = (a,) if b is None else (a, b)
