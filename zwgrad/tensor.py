@@ -2,6 +2,13 @@ import numpy as np
 from zwir.op import OP, OPNode
 
 
+def tensor(data, device: str = "cpu", req_grad: bool = False):
+    return Tensor(data, device=device, req_grad=req_grad)
+
+
+ten = tensor  # Abbreviation
+
+
 class Tensor:
     def __init__(self, data, device: str = "cpu", req_grad: bool = False):
         if isinstance(data, OPNode):
@@ -40,26 +47,28 @@ class Tensor:
         if not isinstance(x, Tensor):
             x = Tensor(x, device=self.device)
         assert self._check_devices(x), "Tensors must be on same device."
+        return x
 
     @staticmethod
     def _make_op_tensor(op: OP, src=None, arg=None):
-        res = Tensor(OPNode(op, [_src.op for _src in src], arg))
+        srcops = [_src.op for _src in src if _src is not None]
+        res = Tensor(OPNode(op, srcops, arg))
         res._set_grad(src[0], src[1] if len(src) > 1 else None)
         return res
 
     # Operations
     def __add__(self, x):
-        x = self.binary_op_check(x)
+        x = self._binary_op_check(x)
         res = Tensor._make_op_tensor(OP.ADD, [self, x])
         return res
 
     def __mul__(self, x):
-        x = self.binary_op_check(x)
+        x = self._binary_op_check(x)
         res = Tensor._make_op_tensor(OP.ADD, [self, x])
         return res
 
     def __matmul__(self, x):
-        x = self.binary_op_check(x)
+        x = self._binary_op_check(x)
         res = Tensor._make_op_tensor(OP.MATMUL, [self, x])
         return res
 

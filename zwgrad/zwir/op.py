@@ -41,9 +41,11 @@ class OPNode:
         if self._val is not None:
             return self._val
 
+        a, b = None, None
         if is_unary(self.op):
             a = self.src[0].exec() if isinstance(self.src[0], OPNode) else self.src[0]
         if is_binary(self.op):
+            a = self.src[0].exec() if isinstance(self.src[0], OPNode) else self.src[0]
             b = self.src[1].exec() if isinstance(self.src[1], OPNode) else self.src[1]
 
         if self.op == OP.TEN:

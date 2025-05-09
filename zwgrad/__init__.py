@@ -1,3 +1,7 @@
-from tensor import Tensor
+from tensor import Tensor, ten, tensor
 
-__all__ = ["Tensor"]
+__all__ = [
+    "Tensor",
+    "tensor",
+    "ten",
+]
