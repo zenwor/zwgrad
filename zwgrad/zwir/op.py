@@ -36,17 +36,37 @@ class OPNode:
         self._val = None
         self.owner = None
 
-    def __str__(self):
-        src_repr = [
-            ("  " + str(s)) if isinstance(s, OPNode) else repr(s) for s in self.src
-        ]  # noqa: E501
-        src_repr = [_src.replace("\n", "") for _src in src_repr]
-        src_repr = ",\n ".join(src_repr)
-        if self.op != OP.TEN:
-            src_repr = "\n " + src_repr
-            return f"OPNode(op={self.op}, src=({src_repr}),\n arg={self.arg})"
+    def __str__(self, indent=0):
+        indent_str = " " * indent
+
+        if len(self.src) == 1:
+            s = self.src[0]
+            if isinstance(s, OPNode):
+                src_str = f"({s.__str__(indent + 4).lstrip()})"
+            else:
+                if isinstance(s, np.ndarray):
+                    src_str = f"(<ndarray at {hex(id(s))})"
+                else:
+                    src_repr = repr(s).replace("\n", " ")
+                    src_str = f"({src_repr})"
         else:
-            return f"OPNode(op={self.op}, src=({src_repr}), arg={self.arg})"
+            src_repr = []
+            for s in self.src:
+                if isinstance(s, OPNode):
+                    src_repr.append(s.__str__(indent + 4))
+                else:
+                    if isinstance(s, np.ndarray):
+                        src_str = f"<ndarray at {hex(id(s))}>"
+                    else:
+                        src_str = repr(s).replace("\n", " ")
+                    src_repr.append(f"{' ' * (indent + 4)}{src_str}")
+            src_str = (
+                f"{' ' * indent}[]"
+                if not src_repr
+                else "[\n" + ",\n".join(src_repr) + "\n" + f"{' ' * indent}]"
+            )
+
+        return f"{indent_str}OPNode(op={self.op}, src={src_str}, arg={self.arg})"
 
     # fmt: off
     def exec(self):
