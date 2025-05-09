@@ -9,6 +9,19 @@ class OP:
     SUM = "SUM"
 
 
+NOOPS = ["TEN"]
+UNARYOPS = ["SUM"]
+BINARYOPS = ["ADD", "MUL", "MATMUL"]
+
+
+def is_unary(x: OP):
+    return x in UNARYOPS
+
+
+def is_binary(x: OP):
+    return x in BINARYOPS
+
+
 class OPNode:
     def __init__(self, op, src, arg=None):
         self.op = op
@@ -28,23 +41,21 @@ class OPNode:
         if self._val is not None:
             return self._val
 
+        if is_unary(self.op):
+            a = self.src[0].exec() if isinstance(self.src[0], OPNode) else self.src[0]
+        if is_binary(self.op):
+            b = self.src[1].exec() if isinstance(self.src[1], OPNode) else self.src[1]
+
         if self.op == OP.TEN:
             assert len(self.src) == 1, "Tensor source must be of size 1."
             self._val = self.src[0]
         elif self.op == OP.ADD:
-            a = self.src[0].exec() if isinstance(self.src[0], OPNode) else self.src[0]
-            b = self.src[1].exec() if isinstance(self.src[1], OPNode) else self.src[1]
             self._val = np.add(a, b)
         elif self.op == OP.MUL:
-            a = self.src[0].exec() if isinstance(self.src[0], OPNode) else self.src[0]
-            b = self.src[1].exec() if isinstance(self.src[1], OPNode) else self.src[1]
             self._val = np.multiply(a, b)
         elif self.op == OP.MATMUL:
-            a = self.src[0].exec() if isinstance(self.src[0], OPNode) else self.src[0]
-            b = self.src[1].exec() if isinstance(self.src[1], OPNode) else self.src[1]
             self._val = np.matmul(a, b)
         elif self.op == OP.SUM:
-            a = self.src[0].exec() if isinstance(self.src[0], OPNode) else self.src[0]
             self._val = np.sum(a, axis=self.arg["axis"], keepdims=self.arg["keepdims"])
         else:
             raise ValueError(f"Invalid OPNode op: {self.op}")
