@@ -41,30 +41,32 @@ class Tensor:
             x = Tensor(x, device=self.device)
         assert self._check_devices(x), "Tensors must be on same device."
 
-    # Op overloading
+    @staticmethod
+    def _make_op_tensor(op: OP, src=None, arg=None):
+        res = Tensor(OPNode(op, [_src.op for _src in src], arg))
+        res._set_grad(src[0], src[1] if len(src) > 1 else None)
+        return res
+
+    # Operations
     def __add__(self, x):
         x = self.binary_op_check(x)
-        res = Tensor(OPNode(OP.ADD, [self.op, x.op]))
-        res._set_grad(self, x)
+        res = Tensor._make_op_tensor(OP.ADD, [self, x])
         return res
 
     def __mul__(self, x):
         x = self.binary_op_check(x)
-        res = Tensor(OPNode(OP.MUL, [self.op, x.op]))
-        res._set_grad(self, x)
+        res = Tensor._make_op_tensor(OP.ADD, [self, x])
         return res
 
     def __matmul__(self, x):
         x = self.binary_op_check(x)
-        res = Tensor(OPNode(OP.MATMUL, [self.op, x.op]))
-        res._set_grad(self, x)
+        res = Tensor._make_op_tensor(OP.MATMUL, [self, x])
         return res
 
     def sum(self, axis=None, keepdims=False):
-        res = Tensor(
-            OPNode(OP.SUM, [self.op], {"axis": axis, "keepdims": keepdims})
-        )  # noqa: E501
-        res._set_grad(self)
+        res = Tensor._make_op_tensor(
+            OP.SUM, [self], {"axis": axis, "keepdims": keepdims}
+        )
         return res
 
     def backward(self, grad_out=None):
@@ -86,18 +88,19 @@ class Tensor:
             return
 
         # UNARY OPS
-        if self.op.op == OP.SUM:
-            (x,) = self._ctx
-            if self.op.arg["axis"] is None:
-                grad = np.full_like(x.numpy(), grad_out)
-            else:
-                shape = list(x.shape)
-                shape[self.op.arg["axis"]] = 1
-                grad = np.reshape(grad_out, shape)
-            x.bwd(grad)
+        if self.is_unary():
+            if self.op.op == OP.SUM:
+                (a,) = self._ctx
+                if self.op.arg["axis"] is None:
+                    grad = np.full_like(a.numpy(), grad_out)
+                else:
+                    shape = list(a.shape)
+                    shape[self.op.arg["axis"]] = 1
+                    grad = np.reshape(grad_out, shape)
+                a.bwd(grad)
 
         # BINARY OPS
-        elif len(self._ctx) == 2:
+        elif self.is_binary() == 2:
             a, b = self._ctx
             if self.op.op == OP.ADD:
                 a.bwd(grad_out)
@@ -113,3 +116,9 @@ class Tensor:
         self.req_grad = a.req_grad or (b is not None and b.req_grad)
         if self.req_grad:
             self._ctx = (a,) if b is None else (a, b)
+
+    def is_unary(self):
+        return len(self._ctx) == 1
+
+    def is_binary(self):
+        return len(self._ctx) == 2
