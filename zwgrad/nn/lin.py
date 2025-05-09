@@ -8,8 +8,7 @@ class Lin(Module):
     def __init__(
         self, in_dim: int, out_dim: int, bias: bool = True, device: str = "cpu"
     ):
-        # w = np.random.randn(in_dim, out_dim) * 0.1
-        w = np.ones((in_dim, out_dim))
+        w = np.random.randn(in_dim, out_dim) * 0.1
         b = np.random.randn(out_dim) if bias else np.zeros(out_dim)
 
         self.w = zwg.ten(w, device, req_grad=True)
