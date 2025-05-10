@@ -6,18 +6,22 @@ class OP:
     TEN = "TENSOR"
 
     # UNARY OPS
+    FILL_LIKE = "FILL_LIKE"
     SUM = "SUM"
     RESHAPE = "RESHAPE"
+    RED = "REDUCE"
 
     # BINARY OPS
     ADD = "ADD"
     MUL = "MUL"
+    DIV = "DIV"  # Scalar, for now
     MATMUL = "MATMUL"
+    MAX = "MAX"
 
 
 NOOPS = ["TEN"]
-UNARYOPS = ["SUM", "RESHAPE"]
-BINARYOPS = ["ADD", "MUL", "MATMUL"]
+UNARYOPS = ["FILL_LIKE", "SUM", "RESHAPE", "REDUCE"]
+BINARYOPS = ["ADD", "MUL", "DIV", "MATMUL", "MAX"]
 
 
 def is_unary(x: OP):
@@ -90,13 +94,27 @@ class OPNode:
             self._val = np.sum(a, axis=self.arg["axis"], keepdims=self.arg["keepdims"])
         elif self.op == OP.RESHAPE:
             self._val = np.reshape(a, self.arg["shape"])
+        elif self.op == OP.FILL_LIKE:
+            self._val = np.empty_like(a)
+            self._val.fill(self.arg)
+        elif self.op == OP.RED:
+            # TODO: Add support and possible better sync with other OPs
+            red_met = self.arg["red_met"]
+            if red_met == "sum":
+                self._val = np.sum(a, axis=self.arg["axis"], keepdims=self.arg["keepdims"])
         # BINARY OPS
         elif self.op == OP.ADD:
             self._val = np.add(a, b)
         elif self.op == OP.MUL:
             self._val = np.multiply(a, b)
+        elif self.op == OP.DIV:
+            if self.arg == "size":
+                b = b.size
+            self._val = np.divide(a, b)
         elif self.op == OP.MATMUL:
             self._val = np.matmul(a, b)
+        elif self.op == OP.MAX:
+            self._val = np.maximum(a, b)
         else:
             raise ValueError(f"Invalid OPNode op: {self.op}")
         return self._val

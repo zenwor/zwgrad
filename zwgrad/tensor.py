@@ -23,8 +23,8 @@ class Tensor:
         self.device = device
         self._shape = data.shape if hasattr(data, "shape") else None
         self._dtype = data.dtype if hasattr(data, "dtype") else None
+
         self.req_grad = req_grad
-        # Initialize grad only if req_grad is True
         self.grad = np.zeros_like(self.numpy()) if req_grad else None
         self._ctx = None
 
@@ -125,7 +125,6 @@ class Tensor:
                 if self.op.arg["axis"] is None:
                     grad = np.full_like(a.numpy(), grad_out)
                 else:
-                    # Broadcast grad_out to match input shape
                     grad = np.broadcast_to(
                         np.expand_dims(grad_out, axis=self.op.arg["axis"]),
                         a.shape,  # noqa: E501
@@ -133,6 +132,40 @@ class Tensor:
                 a.bwd(grad)
             elif self.op.op == OP.RESHAPE:
                 a.bwd(np.reshape(grad_out, a.shape))
+            elif self.op.op == OP.FILL_LIKE:
+                a.bwd(np.zeros_like(grad_out))
+            elif self.op.op == OP.RED:
+                if self.op.arg["red_met"] == "sum":
+                    (a,) = self._ctx
+                    axes = self.op.arg["axis"]
+                    keepdims = self.op.arg["keepdims"]
+                    if axes is None:
+                        # Full reduction to scalar
+                        a_grad = np.full_like(a.numpy(), grad_out)
+                    else:
+                        axes = (axes,) if isinstance(axes, int) else axes
+                        # fmt: off
+                        axes = tuple(
+                            ax
+                            if ax >= 0
+                            else ax + a.numpy().ndim
+                            for ax in axes
+                        )
+                        # fmt: on
+                        if keepdims:
+                            a_grad = np.broadcast_to(grad_out, a.shape)
+                        else:
+                            grad_shape = list(a.shape)  # Use input shape
+                            for ax in axes:
+                                grad_shape[ax] = 1
+                            grad_out_reshaped = np.reshape(
+                                grad_out, grad_shape
+                            )  # noqa: E501
+                            a_grad = np.broadcast_to(
+                                grad_out_reshaped, a.shape
+                            )  # noqa: E501
+                    a.bwd(a_grad)
+
         # BINARY OPS
         elif self.is_binary():
             a, b = self._ctx
@@ -143,9 +176,21 @@ class Tensor:
             elif self.op.op == OP.MUL:
                 a.bwd(grad_out * b.numpy())
                 b.bwd(grad_out * a.numpy())
+            elif self.op.op == OP.DIV:
+                if self.op.arg == "size":
+                    b = b.numpy().size
+                a_grad = grad_out / b
+                a.bwd(a_grad)
             elif self.op.op == OP.MATMUL:
                 a.bwd(grad_out @ b.numpy().T)
                 b.bwd(a.numpy().T @ grad_out)
+            elif self.op.op == OP.MAX:
+                a_val = a.numpy() if isinstance(a, Tensor) else a.exec()
+                b_val = b.numpy() if isinstance(b, Tensor) else b.exec()
+                a_grad = grad_out * (a_val > b_val)
+                b_grad = grad_out * (b_val > a_val)
+                a.bwd(a_grad)
+                b.bwd(b_grad)
 
     def _set_grad(self, a, b=None):
         """Setup gradient tracking for this operation"""
